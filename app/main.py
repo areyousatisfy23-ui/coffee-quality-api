@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Header, HTTPException
+
+    from fastapi import FastAPI, Header, HTTPException
 import joblib
 import pandas as pd
 from pydantic import BaseModel
@@ -6,9 +7,9 @@ from pydantic import BaseModel
 # 1. Initialize FastAPI
 app = FastAPI()
 
-# 2. Load the "Cleaner" and the "Brain" at startup
-model = joblib.load("app/model.joblib")
-preprocessor = joblib.load("app/preprocessor.joblib")
+# 2. Load the model (Matching your exact GitHub filename)
+# We assume the preprocessor is built into this joblib file
+model = joblib.load("app/coffee_model.joblib")
 
 # 3. Define the input format
 class CoffeeInput(BaseModel):
@@ -29,13 +30,18 @@ def home():
 @app.post("/predict")
 def predict(data: CoffeeInput, x_api_key: str = Header(None)):
     if x_api_key != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API Key")
+        raise HTTPException(status_code=403, detail="Invalid API Key")
     
+    # Convert input to DataFrame
     input_df = pd.DataFrame([data.dict()])
+    
+    # Matching column names to your training data
     input_df.columns = ['Country of Origin', 'Altitude', 'Variety', 'Processing Method', 'Color', 'Moisture Percentage']
     
-    processed_data = preprocessor.transform(input_df)
-    prediction = model.predict(processed_data)
+    prediction = model.predict(input_df)
     
-    result = "High Quality" if prediction[0] == 1 else "Average Quality"
+    # Mapping to our 3 classes: Low, Average, High
+    quality_map = {0: "Low Quality", 1: "Average Quality", 2: "High Quality"}
+    result = quality_map.get(prediction[0], "Unknown Quality")
+    
     return {"prediction": result}
